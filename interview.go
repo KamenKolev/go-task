@@ -14,6 +14,8 @@ import (
 )
 
 func main() {
+	// TODO slice for return type
+	freqCountMap := make(map[string]int)
 
 	file, error := os.Open("customers.csv")
 
@@ -33,12 +35,20 @@ func main() {
 		emailParts := strings.Split(email, "@")
 		if len(emailParts) == 2 {
 			domain = emailParts[1]
+			fmt.Println(domain)
+
+			_, domainAlreadyAdded := freqCountMap[domain]
+			if domainAlreadyAdded {
+				freqCountMap[domain] = freqCountMap[domain] + 1
+			} else {
+				freqCountMap[domain] = 1
+			}
+
 		} else {
 			// TODO error handling
 			// domain = ""
 		}
 
-		fmt.Println(domain)
 	}
 
 	if err := scanner.Err(); err != nil {
