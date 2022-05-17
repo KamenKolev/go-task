@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -28,7 +29,7 @@ type swapiPersonDTO struct {
 	URL       string    `json:"url"`
 }
 
-type swapiPersonsReponse struct {
+type swapiPeopleReponse struct {
 	Count    int              `json:"count"`
 	Next     interface{}      `json:"next"`     // nil | string
 	Previous interface{}      `json:"previous"` // nil | string
@@ -128,11 +129,20 @@ func getPeople(writer http.ResponseWriter, req *http.Request) {
 	if err == nil {
 		body, err := ioutil.ReadAll(resp.Body)
 
+		var unmarshalled swapiPeopleReponse
+		unmarshallingError := json.Unmarshal(body, &unmarshalled)
+
+		fmt.Print(unmarshalled.Results[2].Name)
+
+		if unmarshallingError != nil {
+			fmt.Println("unmarshalling error thrown")
+			fmt.Println(unmarshallingError)
+		}
+
 		if err != nil {
 			writer.WriteHeader(400)
 		} else {
 			writer.Write(body)
-
 		}
 
 	} else {
