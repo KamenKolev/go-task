@@ -26,12 +26,9 @@ func main() {
 	scanner := bufio.NewScanner(file)
 
 	for scanner.Scan() {
-
-		// fmt.Println(scanner.Text())
 		line := scanner.Text()
-		// idk := strings.SplitAfterN(",", line, 1)
-		idk := strings.Split(line, ",")
-		email := idk[2]
+		email := strings.Split(line, ",")[2]
+
 		fmt.Println(email)
 	}
 
