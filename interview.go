@@ -54,6 +54,7 @@ func main() []result {
 	if scannerError := scanner.Err(); scannerError != nil {
 		log.Fatal(scannerError) // TODO custom message?
 	}
+	file.Close()
 
 	domains := make([]string, 0, len(domainCount))
 	for domain := range domainCount {
