@@ -9,49 +9,68 @@ import (
 	"bufio"
 	"fmt"
 	"log"
+	"net/mail"
 	"os"
+	"sort"
 	"strings"
 )
 
+type result struct {
+	domain string
+	count  int
+}
+
 func main() {
-	// TODO slice for return type
-	freqCountMap := make(map[string]int)
 
-	file, error := os.Open("customers.csv")
-
-	if error != nil {
-		log.Fatal(error)
+	file, fileOpenError := os.Open("customers.csv")
+	if fileOpenError != nil {
+		log.Fatal(fileOpenError) // TODO custom message?
 	}
-
 	defer file.Close()
 
 	scanner := bufio.NewScanner(file)
 
+	domainCount := make(map[string]int)
+
 	for scanner.Scan() {
 		line := scanner.Text()
-		email := strings.Split(line, ",")[2]
+		email, invalidEmailError := mail.ParseAddress(strings.Split(line, ",")[2])
 
-		var domain string
-		emailParts := strings.Split(email, "@")
-		if len(emailParts) == 2 {
-			domain = emailParts[1]
-			fmt.Println(domain)
+		if invalidEmailError != nil {
+			log.Print(invalidEmailError) // TODO custom error message?
+		} else {
 
-			_, domainAlreadyAdded := freqCountMap[domain]
+			domain := strings.Split(email.Address, "@")[1]
+
+			_, domainAlreadyAdded := domainCount[domain]
 			if domainAlreadyAdded {
-				freqCountMap[domain] = freqCountMap[domain] + 1
+				domainCount[domain] = domainCount[domain] + 1
 			} else {
-				freqCountMap[domain] = 1
+				domainCount[domain] = 1
 			}
 
-		} else {
-			// TODO error handling
-			// domain = ""
 		}
-
 	}
 
-	if err := scanner.Err(); err != nil {
-		log.Fatal(err)
+	if scannerError := scanner.Err(); scannerError != nil {
+		log.Fatal(scannerError) // TODO custom message?
 	}
+
+	domains := make([]string, 0, len(domainCount))
+	for k := range domainCount {
+		domains = append(domains, k)
+	}
+	sort.Strings(domains)
+
+	results := make([]result, 0, len(domains))
+	for _, k := range domains {
+		results = append(results, result{
+			domain: k,
+			count:  domainCount[k],
+		})
+	}
+
+	fmt.Println(results)
+
+	// return results
 }
