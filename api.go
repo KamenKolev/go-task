@@ -161,9 +161,47 @@ func getAllPeopleFromSwapi() []swapiPersonDTO {
 	return results
 }
 
-// writer http.ResponseWriter, req *http.Request
-// TODO issue -> it is sync
-// TODO receive pageSize arg
+// TODO dedupe
+func getPlanetsFromPage(page int) swapiPlanetsReponse {
+	resp, err := http.Get(strings.Join([]string{"http://swapi.dev/api/planets?page=", strconv.Itoa(page)}, ""))
+
+	if err != nil {
+		// TODO infinite retry could totally backfire
+		return getPlanetsFromPage(page)
+	} else {
+		body, _ := ioutil.ReadAll(resp.Body)
+
+		var unmarshalled swapiPlanetsReponse
+		unmarshallingError := json.Unmarshal(body, &unmarshalled)
+
+		if unmarshallingError != nil {
+			fmt.Println("unmarshalling error thrown")
+			fmt.Println(unmarshallingError)
+		}
+
+		return unmarshalled
+	}
+}
+
+func getAllPlanetsFromSwapi() []swapiPlanetDTO {
+	firstRes := getPlanetsFromPage(1)
+
+	results := make([]swapiPlanetDTO, firstRes.Count)
+	for i, v := range firstRes.Results {
+		results[i] = v
+	}
+
+	pages := int(math.Ceil(float64(firstRes.Count) / 10))
+
+	for page := 2; page <= pages; page++ {
+		for i, v := range getPlanetsFromPage(page).Results {
+			results[i+page*10-10] = v
+		}
+	}
+
+	return results
+}
+
 func handleGetPeople(storedPeople []swapiPersonDTO) func(http.ResponseWriter, *http.Request) {
 	return func(writer http.ResponseWriter, req *http.Request) {
 		results := make([]personDTO, len(storedPeople))
@@ -174,13 +212,25 @@ func handleGetPeople(storedPeople []swapiPersonDTO) func(http.ResponseWriter, *h
 
 		writer.Write(resultsJSON)
 	}
+}
 
+func handleGetPlanets(storedPlanets []swapiPlanetDTO) func(http.ResponseWriter, *http.Request) {
+	return func(writer http.ResponseWriter, req *http.Request) {
+		results := make([]planetDTO, len(storedPlanets))
+		for i, v := range storedPlanets {
+			results[i] = swapiPlanetToPlanet(v)
+		}
+		resultsJSON, _ := json.Marshal(results)
+
+		writer.Write(resultsJSON)
+	}
 }
 
 func main() {
 	ppl := getAllPeopleFromSwapi()
-	// fmt.Print(ppl)
-	// TODO fetch all people beforeHand
+	planets := getAllPlanetsFromSwapi()
+
 	http.HandleFunc("/people", handleGetPeople(ppl))
+	http.HandleFunc("/planets", handleGetPlanets(planets))
 	http.ListenAndServe(":8080", nil)
 }
