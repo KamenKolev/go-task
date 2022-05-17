@@ -71,6 +71,7 @@ type personDTO struct {
 
 // Used to tackle overfetching
 type planetDTO struct {
+	Id         int    `json:"id"`
 	Name       string `json:"name"`
 	Diameter   int    `json:"diameter"`
 	Climate    string `json:"climate"`
@@ -113,6 +114,7 @@ func swapiPlanetToPlanet(swapiPlanet swapiPlanetDTO) planetDTO {
 	population, _ := strconv.Atoi(swapiPlanet.Population)
 
 	return planetDTO{
+		Id:         getResourceIDFromURL(swapiPlanet.URL),
 		Name:       swapiPlanet.Name,
 		Diameter:   diameter,
 		Climate:    swapiPlanet.Climate,
