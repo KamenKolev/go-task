@@ -4,59 +4,76 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"time"
 )
 
+type swapiPersonDTO struct {
+	Name      string    `json:"name"`
+	Height    string    `json:"height"`
+	Mass      string    `json:"mass"`
+	HairColor string    `json:"hair_color"`
+	SkinColor string    `json:"skin_color"`
+	EyeColor  string    `json:"eye_color"`
+	BirthYear string    `json:"birth_year"`
+	Gender    string    `json:"gender"`
+	Homeworld string    `json:"homeworld"`
+	Films     []string  `json:"films"`
+	Species   []string  `json:"species"`
+	Vehicles  []string  `json:"vehicles"`
+	Starships []string  `json:"starships"`
+	Created   time.Time `json:"created"`
+	Edited    time.Time `json:"edited"`
+	URL       string    `json:"url"`
+}
+
+type swapiPersonsReponse struct {
+	Count    int16            `json:"count"`
+	Next     interface{}      `json:"next"`     // nil | string
+	Previous interface{}      `json:"previous"` // nil | string
+	Results  []swapiPersonDTO `json:"results"`
+}
+
+type swapiPlanetDTO struct {
+	Name           string    `json:"name"`
+	RotationPeriod string    `json:"rotation_period"`
+	OrbitalPeriod  string    `json:"orbital_period"`
+	Diameter       string    `json:"diameter"`
+	Climate        string    `json:"climate"`
+	Gravity        string    `json:"gravity"`
+	Terrain        string    `json:"terrain"`
+	SurfaceWater   string    `json:"surface_water"`
+	Population     string    `json:"population"`
+	Residents      []string  `json:"residents"`
+	Films          []string  `json:"films"`
+	Created        time.Time `json:"created"`
+	Edited         time.Time `json:"edited"`
+	URL            string    `json:"url"`
+}
+
+type swapiPlanetsReponse struct {
+	Count    int16            `json:"count"`
+	Next     interface{}      `json:"next"`     // nil | string
+	Previous interface{}      `json:"previous"` // nil | string
+	Results  []swapiPlanetDTO `json:"results"`
+}
+
+// Used to tackle overfetching
 type personDTO struct {
-	name       string
-	height     string
-	mass       string
-	hair_color string
-	skin_color string // can be multiple, comma separated
-	eye_color  string
-	birth_year string
-	gender     string // enum
-	homeworld  string
-	films      []string
-	species    []string
-	vehicles   []string
-	starships  []string
-	created    string
-	edited     string
-	url        string
+	Id        int16       `json:"id"`
+	Name      string      `json:"name"`
+	Height    int         `json:"height"`
+	Created   string      `json:"created"`
+	Edited    string      `json:"edited"`
+	Homeworld int16       `json:"homeworld"`
+	Mass      interface{} `json:"mass"` // int or unknown
 }
 
+// Used to tackle overfetching
 type planetDTO struct {
-	name            string
-	rotation_period string
-	orbital_period  string
-	diameter        string
-	climate         string
-	gravity         string
-	terrain         string
-	surface_water   string
-	population      string
-	residents       []string
-	films           []string
-	created         string
-	edited          string
-	url             string
-}
-
-type person struct {
-	id        int16
-	name      string
-	height    int
-	created   string
-	edited    string
-	homeworld int16 // id
-	mass      int   // or unknown
-}
-
-type planet struct {
-	name       string
-	diameter   string
-	climate    string
-	population int
+	Name       string `json:"name"`
+	Diameter   int    `json:"diameter"`
+	Climate    string `json:"climate"`
+	Population int    `json:"population"`
 }
 
 func hello(writer http.ResponseWriter, req *http.Request) {
@@ -65,6 +82,7 @@ func hello(writer http.ResponseWriter, req *http.Request) {
 
 func getPeople(writer http.ResponseWriter, req *http.Request) {
 	resp, err := http.Get("http://swapi.dev/api/people")
+	writer.Header().Add("Content-Type", "application/json")
 
 	if err == nil {
 		body, err := ioutil.ReadAll(resp.Body)
