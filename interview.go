@@ -7,7 +7,6 @@ package main
 
 import (
 	"bufio"
-	"fmt"
 	"log"
 	"net/mail"
 	"os"
@@ -21,7 +20,6 @@ type result struct {
 }
 
 func main() {
-
 	file, fileOpenError := os.Open("customers.csv")
 	if fileOpenError != nil {
 		log.Fatal(fileOpenError) // TODO custom message?
@@ -32,12 +30,14 @@ func main() {
 
 	domainCount := make(map[string]int)
 
+	i := 0
 	for scanner.Scan() {
 		line := scanner.Text()
 		email, invalidEmailError := mail.ParseAddress(strings.Split(line, ",")[2])
 
 		if invalidEmailError != nil {
-			log.Print(invalidEmailError) // TODO custom error message?
+			log.Println("Line", i, "could not be parsed")
+			log.Print(invalidEmailError)
 		} else {
 
 			domain := strings.Split(email.Address, "@")[1]
@@ -50,6 +50,8 @@ func main() {
 			}
 
 		}
+
+		i++
 	}
 
 	if scannerError := scanner.Err(); scannerError != nil {
@@ -70,7 +72,6 @@ func main() {
 		})
 	}
 
-	fmt.Println(results)
-
+	// fmt.Println(results)
 	// return results
 }
