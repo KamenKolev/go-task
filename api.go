@@ -206,6 +206,7 @@ func getAllPlanetsFromSwapi() []swapiPlanetDTO {
 
 func handleGetPeople(storedPeople []swapiPersonDTO) func(http.ResponseWriter, *http.Request) {
 	return func(writer http.ResponseWriter, req *http.Request) {
+		writer.Header().Add("Content-Type", "application/json")
 		results := make([]personDTO, len(storedPeople))
 		for i, v := range storedPeople {
 			results[i] = swapiPersonToPerson(v)
@@ -218,6 +219,7 @@ func handleGetPeople(storedPeople []swapiPersonDTO) func(http.ResponseWriter, *h
 
 func handleGetPlanets(storedPlanets []swapiPlanetDTO) func(http.ResponseWriter, *http.Request) {
 	return func(writer http.ResponseWriter, req *http.Request) {
+		writer.Header().Add("Content-Type", "application/json")
 		results := make([]planetDTO, len(storedPlanets))
 		for i, v := range storedPlanets {
 			results[i] = swapiPlanetToPlanet(v)
