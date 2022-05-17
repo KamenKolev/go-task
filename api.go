@@ -4,11 +4,19 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"math"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
 )
+
+type swapiMultipleResourcesResponse[T any] struct {
+	Count    int         `json:"count"`
+	Next     interface{} `json:"next"`     // nil | string
+	Previous interface{} `json:"previous"` // nil | string
+	Results  []T         `json:"results"`
+}
 
 type swapiPersonDTO struct {
 	Name      string    `json:"name"`
@@ -29,12 +37,7 @@ type swapiPersonDTO struct {
 	URL       string    `json:"url"`
 }
 
-type swapiPeopleReponse struct {
-	Count    int              `json:"count"`
-	Next     interface{}      `json:"next"`     // nil | string
-	Previous interface{}      `json:"previous"` // nil | string
-	Results  []swapiPersonDTO `json:"results"`
-}
+type swapiPeopleReponse = swapiMultipleResourcesResponse[swapiPersonDTO]
 
 type swapiPlanetDTO struct {
 	Name           string    `json:"name"`
@@ -53,12 +56,7 @@ type swapiPlanetDTO struct {
 	URL            string    `json:"url"`
 }
 
-type swapiPlanetsReponse struct {
-	Count    int              `json:"count"`
-	Next     interface{}      `json:"next"`     // nil | string
-	Previous interface{}      `json:"previous"` // nil | string
-	Results  []swapiPlanetDTO `json:"results"`
-}
+type swapiPlanetsReponse = swapiMultipleResourcesResponse[swapiPlanetDTO]
 
 // Used to tackle overfetching
 type personDTO struct {
@@ -122,7 +120,50 @@ func swapiPlanetToPlanet(swapiPlanet swapiPlanetDTO) planetDTO {
 	}
 }
 
-func getPeople(writer http.ResponseWriter, req *http.Request) {
+func getPeopleFromPage(page int) swapiPeopleReponse {
+	resp, err := http.Get(strings.Join([]string{"http://swapi.dev/api/people?page=", strconv.Itoa(page)}, ""))
+
+	if err != nil {
+		// TODO infinite retry could totally backfire
+		return getPeopleFromPage(page)
+	} else {
+		body, _ := ioutil.ReadAll(resp.Body)
+
+		var unmarshalled swapiPeopleReponse
+		unmarshallingError := json.Unmarshal(body, &unmarshalled)
+
+		if unmarshallingError != nil {
+			fmt.Println("unmarshalling error thrown")
+			fmt.Println(unmarshallingError)
+		}
+
+		return unmarshalled
+	}
+}
+
+// Fetch and store all people beforehand
+func getAllPeopleFromSwapi() []swapiPersonDTO {
+	firstRes := getPeopleFromPage(1)
+
+	results := make([]swapiPersonDTO, firstRes.Count)
+	for i, v := range firstRes.Results {
+		results[i] = v
+	}
+
+	pages := int(math.Ceil(float64(firstRes.Count) / 10))
+
+	for page := 2; page <= pages; page++ {
+		for i, v := range getPeopleFromPage(page).Results {
+			results[i+page*10-10] = v
+		}
+	}
+
+	return results
+}
+
+// TODO issue -> it is sync
+// TODO receive pageSize arg
+func handleGetPeople(writer http.ResponseWriter, req *http.Request) {
 	resp, err := http.Get("http://swapi.dev/api/people")
 	writer.Header().Add("Content-Type", "application/json")
 
@@ -136,9 +177,6 @@ func getPeople(writer http.ResponseWriter, req *http.Request) {
 			fmt.Println("unmarshalling error thrown")
 			fmt.Println(unmarshallingError)
 		}
-
-		// TODO
-		fmt.Print(unmarshalled.Results[2].Name)
 
 		results := make([]personDTO, len(unmarshalled.Results))
 		for i, v := range unmarshalled.Results {
@@ -158,7 +196,9 @@ func getPeople(writer http.ResponseWriter, req *http.Request) {
 }
 
 func main() {
-	http.HandleFunc("/people", getPeople)
-	http.ListenAndServe(":8080", nil)
-	fmt.Println("Listening at port 8080")
+	ppl := getAllPeopleFromSwapi()
+	fmt.Print(ppl)
+	// TODO fetch all people beforeHand
+	// http.HandleFunc("/people", handleGetPeople)
+	// http.ListenAndServe(":8080", nil)
 }
