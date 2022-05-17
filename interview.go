@@ -29,7 +29,16 @@ func main() {
 		line := scanner.Text()
 		email := strings.Split(line, ",")[2]
 
-		fmt.Println(email)
+		var domain string
+		emailParts := strings.Split(email, "@")
+		if len(emailParts) == 2 {
+			domain = emailParts[1]
+		} else {
+			// TODO error handling
+			// domain = ""
+		}
+
+		fmt.Println(domain)
 	}
 
 	if err := scanner.Err(); err != nil {
