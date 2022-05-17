@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -27,7 +29,7 @@ type swapiPersonDTO struct {
 }
 
 type swapiPersonsReponse struct {
-	Count    int16            `json:"count"`
+	Count    int              `json:"count"`
 	Next     interface{}      `json:"next"`     // nil | string
 	Previous interface{}      `json:"previous"` // nil | string
 	Results  []swapiPersonDTO `json:"results"`
@@ -51,7 +53,7 @@ type swapiPlanetDTO struct {
 }
 
 type swapiPlanetsReponse struct {
-	Count    int16            `json:"count"`
+	Count    int              `json:"count"`
 	Next     interface{}      `json:"next"`     // nil | string
 	Previous interface{}      `json:"previous"` // nil | string
 	Results  []swapiPlanetDTO `json:"results"`
@@ -59,13 +61,13 @@ type swapiPlanetsReponse struct {
 
 // Used to tackle overfetching
 type personDTO struct {
-	Id        int16       `json:"id"`
+	Id        int         `json:"id"`
 	Name      string      `json:"name"`
 	Height    int         `json:"height"`
-	Created   string      `json:"created"`
-	Edited    string      `json:"edited"`
-	Homeworld int16       `json:"homeworld"`
-	Mass      interface{} `json:"mass"` // int or unknown
+	Created   time.Time   `json:"created"`
+	Edited    time.Time   `json:"edited"`
+	Homeworld int         `json:"homeworld"` // the ID only
+	Mass      interface{} `json:"mass"`      // int or unknown
 }
 
 // Used to tackle overfetching
@@ -76,8 +78,47 @@ type planetDTO struct {
 	Population int    `json:"population"`
 }
 
-func hello(writer http.ResponseWriter, req *http.Request) {
-	fmt.Fprintf(writer, "Yo!")
+// Would return 2 for a URL such as "https://swapi.dev/api/planets/2/"
+func getResourceIDFromURL(url string) int {
+	urlSplit := strings.Split(url, "/")
+	id := urlSplit[len(urlSplit)-2]
+	intID, _ := strconv.Atoi(id)
+	return intID
+}
+
+func numericStringOrUnknownToIntOrNil(s string) interface{} {
+	if s == "unknown" {
+		return nil
+	} else {
+		number, _ := strconv.Atoi(s)
+		return number
+	}
+}
+
+func swapiPersonToPerson(swapiPerson swapiPersonDTO) personDTO {
+	height, _ := strconv.Atoi(swapiPerson.Height)
+
+	return personDTO{
+		Id:        getResourceIDFromURL(swapiPerson.URL),
+		Name:      swapiPerson.Name,
+		Height:    height,
+		Mass:      numericStringOrUnknownToIntOrNil(swapiPerson.Mass),
+		Created:   swapiPerson.Created,
+		Edited:    swapiPerson.Edited,
+		Homeworld: getResourceIDFromURL(swapiPerson.Homeworld),
+	}
+}
+
+func swapiPlanetToPlanet(swapiPlanet swapiPlanetDTO) planetDTO {
+	diameter, _ := strconv.Atoi(swapiPlanet.Diameter)
+	population, _ := strconv.Atoi(swapiPlanet.Population)
+
+	return planetDTO{
+		Name:       swapiPlanet.Name,
+		Diameter:   diameter,
+		Climate:    swapiPlanet.Climate,
+		Population: population,
+	}
 }
 
 func getPeople(writer http.ResponseWriter, req *http.Request) {
