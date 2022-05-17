@@ -132,17 +132,24 @@ func getPeople(writer http.ResponseWriter, req *http.Request) {
 		var unmarshalled swapiPeopleReponse
 		unmarshallingError := json.Unmarshal(body, &unmarshalled)
 
-		fmt.Print(unmarshalled.Results[2].Name)
-
 		if unmarshallingError != nil {
 			fmt.Println("unmarshalling error thrown")
 			fmt.Println(unmarshallingError)
 		}
 
+		// TODO
+		fmt.Print(unmarshalled.Results[2].Name)
+
+		results := make([]personDTO, len(unmarshalled.Results))
+		for i, v := range unmarshalled.Results {
+			results[i] = swapiPersonToPerson(v)
+		}
+		resultsJSON, _ := json.Marshal(results)
+
 		if err != nil {
 			writer.WriteHeader(400)
 		} else {
-			writer.Write(body)
+			writer.Write(resultsJSON)
 		}
 
 	} else {
