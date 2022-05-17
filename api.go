@@ -161,44 +161,26 @@ func getAllPeopleFromSwapi() []swapiPersonDTO {
 	return results
 }
 
+// writer http.ResponseWriter, req *http.Request
 // TODO issue -> it is sync
 // TODO receive pageSize arg
-func handleGetPeople(writer http.ResponseWriter, req *http.Request) {
-	resp, err := http.Get("http://swapi.dev/api/people")
-	writer.Header().Add("Content-Type", "application/json")
-
-	if err == nil {
-		body, err := ioutil.ReadAll(resp.Body)
-
-		var unmarshalled swapiPeopleReponse
-		unmarshallingError := json.Unmarshal(body, &unmarshalled)
-
-		if unmarshallingError != nil {
-			fmt.Println("unmarshalling error thrown")
-			fmt.Println(unmarshallingError)
-		}
-
-		results := make([]personDTO, len(unmarshalled.Results))
-		for i, v := range unmarshalled.Results {
+func handleGetPeople(storedPeople []swapiPersonDTO) func(http.ResponseWriter, *http.Request) {
+	return func(writer http.ResponseWriter, req *http.Request) {
+		results := make([]personDTO, len(storedPeople))
+		for i, v := range storedPeople {
 			results[i] = swapiPersonToPerson(v)
 		}
 		resultsJSON, _ := json.Marshal(results)
 
-		if err != nil {
-			writer.WriteHeader(400)
-		} else {
-			writer.Write(resultsJSON)
-		}
-
-	} else {
-		writer.WriteHeader(400)
+		writer.Write(resultsJSON)
 	}
+
 }
 
 func main() {
 	ppl := getAllPeopleFromSwapi()
-	fmt.Print(ppl)
+	// fmt.Print(ppl)
 	// TODO fetch all people beforeHand
-	// http.HandleFunc("/people", handleGetPeople)
-	// http.ListenAndServe(":8080", nil)
+	http.HandleFunc("/people", handleGetPeople(ppl))
+	http.ListenAndServe(":8080", nil)
 }
