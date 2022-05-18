@@ -62,90 +62,131 @@ type swapiPlanetsReponse = swapiMultipleResourcesResponse[swapiPlanetDTO]
 type personDTO struct {
 	Id        int         `json:"id"`
 	Name      string      `json:"name"`
-	Height    int         `json:"height"`
+	Height    interface{} `json:"height"` // float32 or nil
 	Created   time.Time   `json:"created"`
 	Edited    time.Time   `json:"edited"`
 	Homeworld int         `json:"homeworld"` // the ID only
-	Mass      interface{} `json:"mass"`      // int or unknown
+	Mass      interface{} `json:"mass"`      // float32 or nil
 }
 
 // Used to tackle overfetching
 type planetDTO struct {
-	Id         int    `json:"id"`
-	Name       string `json:"name"`
-	Diameter   int    `json:"diameter"`
-	Climate    string `json:"climate"`
-	Population int    `json:"population"`
+	Id         int         `json:"id"`
+	Name       string      `json:"name"`
+	Diameter   interface{} `json:"diameter"` // float32 or nil
+	Climate    string      `json:"climate"`
+	Population interface{} `json:"population"` // float32 or nil
 }
 
 // Would return 2 for a URL such as "https://swapi.dev/api/planets/2/"
-func getResourceIDFromURL(url string) int {
+func getResourceIDFromURL(url string) (int, error) {
 	urlSplit := strings.Split(url, "/")
 	id := urlSplit[len(urlSplit)-2]
-	intID, _ := strconv.Atoi(id)
-	return intID
+	intID, stringConversionError := strconv.Atoi(id)
+	return intID, stringConversionError
 }
 
-func numericStringOrUnknownToIntOrNil(s string) interface{} {
+func numericStringOrUnknownToFloatOrNil(s string) (interface{}, error) {
 	if s == "unknown" {
-		return nil
-	} else {
-		number, _ := strconv.Atoi(s)
-		return number
+		return nil, nil
 	}
+
+	// The API uses commas to signify thousands. They don't play well with ParseFloat
+	s = strings.ReplaceAll(s, ",", "")
+
+	number, convError := strconv.ParseFloat(s, 32)
+	if convError != nil {
+		return nil, convError
+	}
+
+	return number, nil
 }
 
-func swapiPersonToPerson(swapiPerson swapiPersonDTO) personDTO {
-	height, _ := strconv.Atoi(swapiPerson.Height)
+func swapiPersonToPerson(swapiPerson swapiPersonDTO) (personDTO, error) {
+	height, heightConversionError := numericStringOrUnknownToFloatOrNil(swapiPerson.Height)
+	if heightConversionError != nil {
+		return personDTO{}, heightConversionError
+	}
+	id, idConversionError := getResourceIDFromURL(swapiPerson.URL)
+	if idConversionError != nil {
+		return personDTO{}, idConversionError
+	}
+	homeworld, homeworldConversionError := getResourceIDFromURL(swapiPerson.Homeworld)
+	if homeworldConversionError != nil {
+		return personDTO{}, homeworldConversionError
+	}
+	mass, massConvError := numericStringOrUnknownToFloatOrNil(swapiPerson.Mass)
+	if massConvError != nil {
+		return personDTO{}, massConvError
+	}
 
 	return personDTO{
-		Id:        getResourceIDFromURL(swapiPerson.URL),
+		Id:        id,
 		Name:      swapiPerson.Name,
 		Height:    height,
-		Mass:      numericStringOrUnknownToIntOrNil(swapiPerson.Mass),
+		Mass:      mass,
 		Created:   swapiPerson.Created,
 		Edited:    swapiPerson.Edited,
-		Homeworld: getResourceIDFromURL(swapiPerson.Homeworld),
-	}
+		Homeworld: homeworld,
+	}, nil
 }
 
-func swapiPlanetToPlanet(swapiPlanet swapiPlanetDTO) planetDTO {
-	diameter, _ := strconv.Atoi(swapiPlanet.Diameter)
-	population, _ := strconv.Atoi(swapiPlanet.Population)
+func swapiPlanetToPlanet(swapiPlanet swapiPlanetDTO) (planetDTO, error) {
+	diameter, diameterConvError := numericStringOrUnknownToFloatOrNil(swapiPlanet.Diameter)
+	if diameterConvError != nil {
+		return planetDTO{}, diameterConvError
+	}
+
+	population, populationConvError := numericStringOrUnknownToFloatOrNil(swapiPlanet.Population)
+	if populationConvError != nil {
+		return planetDTO{}, populationConvError
+	}
+	id, idError := getResourceIDFromURL(swapiPlanet.URL)
+	if idError != nil {
+		return planetDTO{}, idError
+	}
 
 	return planetDTO{
-		Id:         getResourceIDFromURL(swapiPlanet.URL),
+		Id:         id,
 		Name:       swapiPlanet.Name,
 		Diameter:   diameter,
 		Climate:    swapiPlanet.Climate,
 		Population: population,
-	}
+	}, nil
 }
 
-func getPeopleFromPage(page int) swapiPeopleReponse {
+func getPeopleFromPage(page int) (swapiPeopleReponse, error) {
 	resp, err := http.Get(strings.Join([]string{"http://swapi.dev/api/people?page=", strconv.Itoa(page)}, ""))
 
 	if err != nil {
 		// TODO infinite retry could totally backfire
+		fmt.Print("retrying getPeopleFromPage")
 		return getPeopleFromPage(page)
 	} else {
-		body, _ := ioutil.ReadAll(resp.Body)
-
+		body, readingError := ioutil.ReadAll(resp.Body)
 		var unmarshalled swapiPeopleReponse
+
+		if readingError != nil {
+			fmt.Println("readingError error thrown")
+			fmt.Println(readingError)
+			return unmarshalled, readingError
+		}
+
 		unmarshallingError := json.Unmarshal(body, &unmarshalled)
 
 		if unmarshallingError != nil {
 			fmt.Println("unmarshalling error thrown")
 			fmt.Println(unmarshallingError)
+			return unmarshalled, unmarshallingError
 		}
 
-		return unmarshalled
+		return unmarshalled, nil
 	}
 }
 
 // Fetch and store all people beforehand
 func getAllPeopleFromSwapi() []swapiPersonDTO {
-	firstRes := getPeopleFromPage(1)
+	firstRes, _ := getPeopleFromPage(1)
 
 	results := make([]swapiPersonDTO, firstRes.Count)
 	for i, v := range firstRes.Results {
@@ -155,7 +196,11 @@ func getAllPeopleFromSwapi() []swapiPersonDTO {
 	pages := int(math.Ceil(float64(firstRes.Count) / 10))
 
 	for page := 2; page <= pages; page++ {
-		for i, v := range getPeopleFromPage(page).Results {
+		res, error := getPeopleFromPage(page)
+		if error != nil {
+			fmt.Print(error)
+		}
+		for i, v := range res.Results {
 			results[i+page*10-10] = v
 		}
 	}
@@ -207,26 +252,48 @@ func getAllPlanetsFromSwapi() []swapiPlanetDTO {
 func handleGetPeople(storedPeople []swapiPersonDTO) func(http.ResponseWriter, *http.Request) {
 	return func(writer http.ResponseWriter, req *http.Request) {
 		writer.Header().Add("Content-Type", "application/json")
+		writer.Header().Add("Access-Control-Allow-Origin", "*")
+
 		results := make([]personDTO, len(storedPeople))
 		for i, v := range storedPeople {
-			results[i] = swapiPersonToPerson(v)
+			person, err := swapiPersonToPerson(v)
+			if err != nil {
+				fmt.Println("swapiPersonToPerson error thrown", err, v)
+				// TODO handle error
+			}
+			results[i] = person
 		}
-		resultsJSON, _ := json.Marshal(results)
+		resultsJSON, marshallingError := json.Marshal(results)
 
-		writer.Write(resultsJSON)
+		if marshallingError != nil {
+			fmt.Print(marshallingError)
+		} else {
+			writer.Write(resultsJSON)
+		}
 	}
 }
 
 func handleGetPlanets(storedPlanets []swapiPlanetDTO) func(http.ResponseWriter, *http.Request) {
 	return func(writer http.ResponseWriter, req *http.Request) {
 		writer.Header().Add("Content-Type", "application/json")
+		writer.Header().Add("Access-Control-Allow-Origin", "*")
+
 		results := make([]planetDTO, len(storedPlanets))
 		for i, v := range storedPlanets {
-			results[i] = swapiPlanetToPlanet(v)
+			planet, err := swapiPlanetToPlanet(v)
+			if err != nil {
+				fmt.Println("swapiPlanetToPlanet error thrown", err, v)
+				// TODO handle error
+			}
+			results[i] = planet
 		}
-		resultsJSON, _ := json.Marshal(results)
+		resultsJSON, marshallingError := json.Marshal(results)
 
-		writer.Write(resultsJSON)
+		if marshallingError != nil {
+			fmt.Print(marshallingError)
+		} else {
+			writer.Write(resultsJSON)
+		}
 	}
 }
 
