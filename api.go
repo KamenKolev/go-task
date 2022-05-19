@@ -62,20 +62,20 @@ type swapiPlanetsReponse = swapiMultipleResourcesResponse[swapiPlanetDTO]
 type personDTO struct {
 	Id        int       `json:"id"`
 	Name      string    `json:"name"`
-	Height    any       `json:"height"` // float32 or nil
+	Height    any       `json:"height"` // float or nil
 	Created   time.Time `json:"created"`
 	Edited    time.Time `json:"edited"`
 	Homeworld int       `json:"homeworld"` // the ID only
-	Mass      any       `json:"mass"`      // float32 or nil
+	Mass      any       `json:"mass"`      // float or nil
 }
 
 // Used to tackle overfetching
 type planetDTO struct {
 	Id         int    `json:"id"`
 	Name       string `json:"name"`
-	Diameter   any    `json:"diameter"` // float32 or nil
+	Diameter   any    `json:"diameter"` // float or nil
 	Climate    string `json:"climate"`
-	Population any    `json:"population"` // float32 or nil
+	Population any    `json:"population"` // float or nil
 }
 
 // Would return 2 for a URL such as "https://swapi.dev/api/planets/2/"
@@ -94,7 +94,7 @@ func numericStringOrUnknownToFloatOrNil(s string) (any, error) {
 	// The API uses commas to signify thousands. They don't play well with ParseFloat
 	s = strings.ReplaceAll(s, ",", "")
 
-	number, convError := strconv.ParseFloat(s, 32)
+	number, convError := strconv.ParseFloat(s, 64)
 	if convError != nil {
 		return nil, convError
 	}
