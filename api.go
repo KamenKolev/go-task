@@ -65,7 +65,7 @@ type personDTO struct {
 	Height    any       `json:"height"` // float or nil
 	Created   time.Time `json:"created"`
 	Edited    time.Time `json:"edited"`
-	Homeworld int       `json:"homeworld"` // the ID only
+	Homeworld any       `json:"homeworld"` // the ID only. Could be nil if the planet is unknown. In this case, this is planet 28
 	Mass      any       `json:"mass"`      // float or nil
 }
 
@@ -111,6 +111,8 @@ func swapiPersonToPerson(swapiPerson swapiPersonDTO) (personDTO, error) {
 	if idConversionError != nil {
 		return personDTO{}, idConversionError
 	}
+
+	var homeworld any
 	homeworld, homeworldConversionError := getResourceIDFromURL(swapiPerson.Homeworld)
 	if homeworldConversionError != nil {
 		return personDTO{}, homeworldConversionError
@@ -118,6 +120,11 @@ func swapiPersonToPerson(swapiPerson swapiPersonDTO) (personDTO, error) {
 	mass, massConvError := numericStringOrUnknownToFloatOrNil(swapiPerson.Mass)
 	if massConvError != nil {
 		return personDTO{}, massConvError
+	}
+
+	// Planet 28 is "unknown" and has zero other useful info. Better return null instead
+	if homeworld == 28 {
+		homeworld = nil
 	}
 
 	return personDTO{
