@@ -3,10 +3,11 @@
 // of customers with e-mail addresses for each domain.  Any errors should be
 // logged (or handled). Performance matters (this is only ~3k lines, but *could*
 // be 1m lines or run on a small machine).
-package customerimporter
+package main
 
 import (
 	"bufio"
+	"fmt"
 	"log"
 	"net/mail"
 	"os"
@@ -19,10 +20,10 @@ type result struct {
 	count  int
 }
 
-func main() []result {
+func main() {
 	file, fileOpenError := os.Open("customers.csv")
 	if fileOpenError != nil {
-		log.Fatal(fileOpenError) // TODO custom message?
+		log.Fatal("Could not open file", fileOpenError)
 	}
 	defer file.Close()
 
@@ -35,8 +36,7 @@ func main() []result {
 		email, invalidEmailError := mail.ParseAddress(strings.Split(line, ",")[2])
 
 		if invalidEmailError != nil {
-			log.Println("Line", i, "could not be parsed")
-			log.Print(invalidEmailError)
+			log.Println("Line", i, "could not be parsed", invalidEmailError)
 		} else {
 			domain := strings.Split(email.Address, "@")[1]
 
@@ -52,7 +52,7 @@ func main() []result {
 	}
 
 	if scannerError := scanner.Err(); scannerError != nil {
-		log.Fatal(scannerError) // TODO custom message?
+		log.Fatal("scanner error", scannerError)
 	}
 	file.Close()
 
@@ -70,5 +70,5 @@ func main() []result {
 		})
 	}
 
-	return results
+	fmt.Print(results)
 }
